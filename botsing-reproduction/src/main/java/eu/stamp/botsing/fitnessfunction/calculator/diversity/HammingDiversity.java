@@ -48,6 +48,12 @@ public class HammingDiversity<T extends Chromosome> extends CallDiversityFitness
         return min;
     }
 
+    public double getHammingDistance(T testChromosome, T chromosome){
+        Map<GenericAccessibleObject<?>, Integer> methodCallsOfGivenChromosome = calculateMethodCalls(chromosome);
+        Individual<T> individual=new Individual<>(chromosome,methodCallsOfGivenChromosome);
+        return calculateHammingDistance(testChromosome,individual);
+    }
+
     private double calculateHammingDistance(T testChromosome, Individual<T> individual) {
         Map<GenericAccessibleObject<?>, Integer> methodCallsOfGivenChromosome = calculateMethodCalls(testChromosome);
         Map<GenericAccessibleObject<?>, Integer> methodCallsOfIndividual = individual.getMethodCalls();

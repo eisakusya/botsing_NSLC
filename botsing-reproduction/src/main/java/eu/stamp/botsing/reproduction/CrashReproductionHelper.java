@@ -24,6 +24,7 @@ import eu.stamp.botsing.CrashProperties;
 import eu.stamp.botsing.fitnessfunction.FitnessFunctions;
 import eu.stamp.botsing.testgeneration.strategy.BotsingIndividualStrategy;
 import eu.stamp.botsing.commons.testgeneration.strategy.MOSuiteStrategy;
+import eu.stamp.botsing.testgeneration.strategy.NSLCStrategy;
 import eu.stamp.botsing.testgeneration.strategy.TestGenerationUtility;
 import org.evosuite.strategy.TestGenerationStrategy;
 
@@ -35,6 +36,8 @@ public class CrashReproductionHelper {
                         return new MOSuiteStrategy(new TestGenerationUtility(),new FitnessFunctions());
                     case DynaMOSA:
                         return new MOSuiteStrategy(new TestGenerationUtility(),new FitnessFunctions());
+                    case NoveltySearch:
+                        return new NSLCStrategy();
                     default:
                         return new BotsingIndividualStrategy();
                 }

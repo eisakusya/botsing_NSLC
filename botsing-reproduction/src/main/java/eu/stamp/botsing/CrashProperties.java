@@ -87,7 +87,8 @@ public class CrashProperties {
         MOEAD,
         PESA_II,
         FEMO,
-        DynaMOSA;
+        DynaMOSA,
+        NoveltySearch;
 
         SearchAlgorithm() {
         }
@@ -145,6 +146,22 @@ public class CrashProperties {
 
     @Parameter(key = "ideal_point_shift", group = "MOEAD", description = "Shift objectives of ideal point to a better situation (to avoid local optimum)")
     public static double idealPointShift = 0.1;
+
+    //新颖性搜索所需输入属性
+    @Parameter(key="novelty_threshold",group = "NSLC",description = "Novelty threshold in NSLC.")
+    public static double noveltyThreshold = 0.5;
+
+    @Parameter(key="niche_size",group="NSLC",description = "Size of niche in NSLC.")
+    public static int nicheSize=50;
+
+    @Parameter(key="stalled_threshold",group="NSLC",description = "Allowance of stalled individuals in NSLC.")
+    public static int stalledThreshold=5;
+
+    @Parameter(key="adding_threshold",group="NSLC",description = "Allowance of adding individuals in NSLC.")
+    public static int addingThreshold=10;
+
+    @Parameter(key="add_to_archive_probability",group="NSLC",description = "Probability of adding into archive in NSLC.")
+    public static double addToArchiveProbability=0.5;
 
 
     public enum DistanceCalculator {

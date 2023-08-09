@@ -6,6 +6,7 @@ import eu.stamp.botsing.fitnessfunction.FitnessFunctions;
 import eu.stamp.botsing.fitnessfunction.testcase.factories.StackTraceChromosomeFactory;
 import eu.stamp.botsing.ga.strategy.GuidedSingleObjectiveGA;
 import eu.stamp.botsing.ga.strategy.metaheuristics.NSGAII;
+import eu.stamp.botsing.ga.strategy.metaheuristics.NoveltySearchLocalCompetition;
 import eu.stamp.botsing.ga.strategy.metaheuristics.PESAII;
 import eu.stamp.botsing.ga.strategy.metaheuristics.SPEA2;
 import eu.stamp.botsing.ga.strategy.metaheuristics.oneplusone.FEMO;
@@ -68,6 +69,10 @@ public class TestGenerationUtility extends AbstractTestGenerationUtility {
                 guidedSinglePointCrossover.updatePublicCalls(((StackTraceChromosomeFactory) chromosomeFactory).getPublicCalls());
                 guidedMutation.updatePublicCalls(((StackTraceChromosomeFactory) chromosomeFactory).getPublicCalls());
                 return new FEMO(chromosomeFactory,guidedMutation);
+            case NoveltySearch:
+                guidedSinglePointCrossover.updatePublicCalls(((StackTraceChromosomeFactory) chromosomeFactory).getPublicCalls());
+                guidedMutation.updatePublicCalls(((StackTraceChromosomeFactory) chromosomeFactory).getPublicCalls());
+                return new NoveltySearchLocalCompetition(chromosomeFactory,guidedSinglePointCrossover,guidedMutation);
             default:
                 return new GuidedSingleObjectiveGA(getChromosomeFactory());
         }

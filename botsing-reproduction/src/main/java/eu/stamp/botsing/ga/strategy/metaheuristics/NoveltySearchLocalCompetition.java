@@ -51,8 +51,13 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         crashCoverage = new WeightedSum(targetTrace);
         noveltyFunction = new NoveltyFunction<>(targetTrace);
         archive = new ArrayList<>();
-        nicheSize = 10;   //暂时初始化
-        noveltyThreshold = 5.0;   //暂时初始化
+
+        noveltyThreshold = CrashProperties.noveltyThreshold;
+        nicheSize = CrashProperties.nicheSize;
+        stalledThreshold=CrashProperties.stalledThreshold;
+        addingThreshold=CrashProperties.addingThreshold;
+        addingArchiveProbability=CrashProperties.addToArchiveProbability;
+
     }
 
     public void generateSolution() {
@@ -298,6 +303,31 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         }
 
         this.sortPopulation(this.niche, noveltyMap);
+    }
+
+    public T getBestIndividual(){
+        //返回最优解
+        if(this.population.isEmpty()){
+            return this.chromosomeFactory.getChromosome();
+        }
+        //对存档进行排序
+        Iterator<T> iterator = this.archive.iterator();
+        Map<T, Double> noveltyMap = new LinkedHashMap();
+
+        while (iterator.hasNext()) {
+            T c = iterator.next();
+            if (this.isFinished()) {
+                if (c.isChanged()) {
+                    iterator.remove();
+                }
+            } else {
+                double novelty = this.noveltyFunction.getNovelty(c, this.archive);
+                noveltyMap.put(c, novelty);
+            }
+        }
+
+        this.sortPopulation(this.archive, noveltyMap);
+        return archive.get(0);
     }
 
 }

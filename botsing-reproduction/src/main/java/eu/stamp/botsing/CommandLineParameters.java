@@ -38,6 +38,13 @@ public class CommandLineParameters {
     public static final String FITNESS_FUNCTION = "fitness";
     public static final String CONTINUE_AFTER_REPRODUCTION = "continue_after_reproduction";
     public static final String CRASH_SECONDARY_OBJECTIVE = "crash_secondary_objective";
+    //NSLC:
+    public static final String NOVELTY_THRESHOLD = "novelty_threshold";
+    public static final String NICHE_SIZE = "niche_size";
+    public static final String STALLED_THRESHOLD="stalled_threshold";
+    public static final String ADDING_THRESHOLD="adding_threshold";
+    public static final String ADD_TO_ARCHIVE_PROB="add_to_archive_probability";
+
 
     public static Options getCommandLineOptions() {
         Options options = new Options();
@@ -103,6 +110,31 @@ public class CommandLineParameters {
         options.addOption(Option.builder(CRASH_SECONDARY_OBJECTIVE)
                 .hasArg()
                 .desc("Crash-related secondary search objectives")
+                .build());
+
+        options.addOption(Option.builder(NOVELTY_THRESHOLD)
+                .hasArg()
+                .desc("Novelty threshold in novelty search with local competition")
+                .build());
+
+        options.addOption(Option.builder(NICHE_SIZE)
+                .hasArg()
+                .desc("Size of niche in novelty search with local competition")
+                .build());
+
+        options.addOption(Option.builder(STALLED_THRESHOLD)
+                .hasArg()
+                .desc("Stalled-allowance threshold in novelty search with local competition")
+                .build());
+
+        options.addOption(Option.builder(ADDING_THRESHOLD)
+                .hasArg()
+                .desc("Adding-allowance threshold in novelty search with local competition")
+                .build());
+
+        options.addOption(Option.builder(ADD_TO_ARCHIVE_PROB)
+                .hasArg()
+                .desc("Random double for adding to archive in novelty search with local competition")
                 .build());
 
         return options;

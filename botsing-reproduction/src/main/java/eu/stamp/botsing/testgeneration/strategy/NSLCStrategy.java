@@ -28,7 +28,8 @@ public class NSLCStrategy extends TestGenerationStrategy {
     @Override
     public TestSuiteChromosome generateTests() {
         LOG.info("test generation strategy: Novelty Search with Local Competition");
-        TestSuiteChromosome suite = new TestSuiteChromosome();
+
+        TestSuiteChromosome suite;
         ExecutionTracer.enableTraceCalls();
         // 获取搜索算法
         GeneticAlgorithm ga = utility.getGA();

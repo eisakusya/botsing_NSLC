@@ -80,16 +80,21 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
         while (!isFinished()) {
             LOG.info("Number of generations: {}", currentIteration + 1);
-
             this.evolve();
+
             //将现有的population和上一次的archive进行合并
             emerge();
+            LOG.info("Size of Big-Archive: {}",bigArchive.size());
+
             //在全局空间内进行非支配排序，并根据排序结果把非支配解加入到存档中
             sort();
             updateNiche();
+            LOG.info("Size of niche: {}|{}",niche.size(),nicheSize);
+
             //再在局部空间内进行新颖性排序
             calculateNoveltyAndSortPopulation();
             updateArchive();
+            LOG.info("Size of Archive: {}|{}",archive.size(),nicheSize);
 
             this.notifyIteration();
             this.writeIndividuals(this.population);
@@ -107,7 +112,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         this.notifyIteration();
     }
 
-    public void generatePopulation(int populationSize) {
+    protected void generatePopulation(int populationSize) {
         LOG.debug("Creating random population");
         for (int i = 0; i < populationSize; i++) {
             T individual;
@@ -127,6 +132,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     protected void updateArchive() {
         //根据新颖性指标，将niche中的个体选中加入到存档
+        archive=new ArrayList<>();
         int added = 0;
         int notAdded = 0;
         int maxNotAdded = 0;
@@ -149,7 +155,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             //降低novelty threshold
             noveltyThreshold *= 0.95;
             notAdded = 0;
-        } else if ((added > addingThreshold) && (archive.size() > nicheSize)) {
+        } else if ((added > addingThreshold) || (archive.size() >= nicheSize)) {
             //提高novelty threshold
             noveltyThreshold *= 1.05;
         }
@@ -160,9 +166,11 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //将旧的存档和今代的种群进行合并，形成bigArchive
         bigArchive = new ArrayList<>(archive);
         bigArchive.addAll(this.population);
+
     }
 
     protected void sort() {
+        //参考自package org.evosuite.ga.operators.ranking的computeRankingAssignment方法
         //在bigArchive中根据FF和新颖性指标进行全局排序
         List<T> pop = this.bigArchive;
         int[] dominateMe = new int[pop.size()];
@@ -232,6 +240,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
     }
 
     public int compare(Chromosome c1, Chromosome c2) {
+        //参考自package org.evosuite.ga.comparators的compare方法
         //在全局空间中根据覆盖率和新颖性进行非支配性比较
         if (c1 == null) {
             return 1;

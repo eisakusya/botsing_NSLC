@@ -134,7 +134,7 @@ public class Botsing {
                 if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
                     throw new RuntimeException("Search algorithm is not NSLC");
                 }
-                setAddingThreshold(commands.getOptionValue(ADDING_THRESHOLD));
+                setATAProbability(commands.getOptionValue(ADD_TO_ARCHIVE_PROB));
             }
             // execute
             return CrashReproduction.execute();

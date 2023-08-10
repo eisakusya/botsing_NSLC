@@ -320,23 +320,8 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             return this.chromosomeFactory.getChromosome();
         }
         //对存档进行排序
-        Iterator<T> iterator = this.archive.iterator();
-        Map<T, Double> noveltyMap = new LinkedHashMap();
-
-        while (iterator.hasNext()) {
-            T c = iterator.next();
-            if (this.isFinished()) {
-                if (c.isChanged()) {
-                    iterator.remove();
-                }
-            } else {
-                double novelty = this.noveltyFunction.getNovelty(c, this.archive);
-                noveltyMap.put(c, novelty);
-            }
-        }
-
-        this.sortPopulation(this.archive, noveltyMap);
-        return archive.get(0);
+        calculateNoveltyAndSortPopulation();
+        return this.population.get(0);
     }
 
 }

@@ -9,6 +9,7 @@ import org.evosuite.ga.metaheuristics.NoveltySearch;
 import org.evosuite.ga.stoppingconditions.StoppingCondition;
 import org.evosuite.ga.stoppingconditions.ZeroFitnessStoppingCondition;
 import org.evosuite.strategy.TestGenerationStrategy;
+import org.evosuite.testcase.TestChromosome;
 import org.evosuite.testcase.execution.ExecutionTracer;
 import org.evosuite.testsuite.TestSuiteChromosome;
 import org.evosuite.utils.ResourceController;
@@ -29,7 +30,7 @@ public class NSLCStrategy extends TestGenerationStrategy {
     public TestSuiteChromosome generateTests() {
         LOG.info("test generation strategy: Novelty Search with Local Competition");
 
-        TestSuiteChromosome suite;
+        TestSuiteChromosome suite=new TestSuiteChromosome();
         ExecutionTracer.enableTraceCalls();
         // 获取搜索算法
         GeneticAlgorithm ga = utility.getGA();
@@ -54,7 +55,8 @@ public class NSLCStrategy extends TestGenerationStrategy {
         //因为已经指定FF为覆盖率，因此此阶段不再添加FF
         //开始搜索生成
         ga.generateSolution();
-        suite= (TestSuiteChromosome) ga.getBestIndividual();
+        TestChromosome solution=(TestChromosome) ga.getBestIndividual();
+        suite.addTest(solution);
         return suite;
 
     }

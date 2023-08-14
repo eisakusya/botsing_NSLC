@@ -11,6 +11,7 @@ import eu.stamp.botsing.fitnessfunction.utils.WSEvolution;
 import org.evosuite.Properties;
 import org.evosuite.ga.Chromosome;
 import org.evosuite.ga.ChromosomeFactory;
+import org.evosuite.ga.FitnessFunction;
 import org.evosuite.ga.operators.crossover.CrossOverFunction;
 import org.evosuite.utils.Randomness;
 
@@ -113,7 +114,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
     }
 
     protected void generatePopulation(int populationSize) {
-        LOG.debug("Creating random population");
+        LOG.info("Creating random population");
         for (int i = 0; i < populationSize; i++) {
             T individual;
             individual = chromosomeFactory.getChromosome();
@@ -128,6 +129,27 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
         }
 
+    }
+
+    protected void calculateFitness(){
+        LOG.debug("Calculate fitness for {} individuals.",populationSize);
+        Iterator<T> iterator=population.iterator();
+        while(iterator.hasNext()){
+            T c = iterator.next();
+            if(isFinished()){
+                if(c.isChanged()){
+                    iterator.remove();
+                }
+            }else{
+                calculateFitness(c);
+            }
+        }
+    }
+    protected void calculateFitness(T chromosome){
+        for(FitnessFunction<T> fitnessFunction:fitnessFunctions){
+            notifyEvaluation(chromosome);
+            fitnessFunction.getFitness(chromosome);
+        }
     }
 
     protected void updateArchive() {

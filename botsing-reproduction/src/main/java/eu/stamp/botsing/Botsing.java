@@ -108,6 +108,13 @@ public class Botsing {
                 }
                 setNoveltyThreshold(commands.getOptionValue(NOVELTY_THRESHOLD));
             }
+            // 设置是否考虑覆盖率
+            if(commands.hasOption(NOVELTY_THRESHOLD)){
+                if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
+                    throw new RuntimeException("Search algorithm is not NSLC");
+                }
+                setConsiderCoverage();
+            }
             // 设置种群大小
             if(commands.hasOption(NICHE_SIZE)){
                 if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
@@ -247,6 +254,11 @@ public class Botsing {
 
         CrashProperties.addToArchiveProbability = Double.parseDouble(probability);
         LOG.info("Probability initialized: {}.",CrashProperties.addToArchiveProbability);
+    }
+
+    private void setConsiderCoverage(){
+        CrashProperties.considerCoverage=true;
+        LOG.info("Consider coverage in NSLC.");
     }
 
     @SuppressWarnings("checkstyle:systemexit")

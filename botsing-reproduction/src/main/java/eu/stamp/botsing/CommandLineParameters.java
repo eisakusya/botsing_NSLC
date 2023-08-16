@@ -44,6 +44,7 @@ public class CommandLineParameters {
     public static final String STALLED_THRESHOLD="stalled_threshold";
     public static final String ADDING_THRESHOLD="adding_threshold";
     public static final String ADD_TO_ARCHIVE_PROB="add_to_archive_probability";
+    public static final String CONSIDER_COVERAGE="consider_coverage";
 
 
     public static Options getCommandLineOptions() {
@@ -135,6 +136,10 @@ public class CommandLineParameters {
         options.addOption(Option.builder(ADD_TO_ARCHIVE_PROB)
                 .hasArg()
                 .desc("Random double for adding to archive in novelty search with local competition")
+                .build());
+
+        options.addOption(Option.builder(CONSIDER_COVERAGE)
+                .desc("Whether to consider coverage in novelty search with local competition")
                 .build());
 
         return options;

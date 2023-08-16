@@ -8,6 +8,7 @@ import eu.stamp.botsing.fitnessfunction.WeightedSum;
 import eu.stamp.botsing.fitnessfunction.testcase.factories.StackTraceChromosomeFactory;
 import eu.stamp.botsing.fitnessfunction.utils.WSEvolution;
 
+import eu.stamp.botsing.ga.strategy.operators.CoverageAndNoveltyBasedSorting;
 import org.evosuite.Properties;
 import org.evosuite.ga.Chromosome;
 import org.evosuite.ga.ChromosomeFactory;
@@ -23,17 +24,21 @@ import java.util.*;
 public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evosuite.ga.metaheuristics.NoveltySearch<T> {
     private static final Logger LOG = LoggerFactory.getLogger(NoveltySearchLocalCompetition.class);
     Mutation mutation;
+    protected double nicheFactor = 0.0;
     private final int nicheSize;
-    protected List<T> niche = null;
+    protected HashMap<T, List<T>> Niche = null;
+    protected HashMap<T, Double> populationWithNovelty = null;
     protected double noveltyThreshold;
     private final WeightedSum crashCoverage;
     private final NoveltyFunction<T> noveltyFunction;
     private int populationSize;
     protected List<T> archive = null;
     protected List<T> bigArchive = null;
+    protected CoverageAndNoveltyBasedSorting<T> sortingOperator;
     protected int stalledThreshold;
     protected int addingThreshold;
     protected double addingArchiveProbability;
+    protected boolean considerCoverage = false;
 
     public NoveltySearchLocalCompetition(ChromosomeFactory<T> factory, CrossOverFunction crossOverOperator, Mutation mutationOperator) {
         super(factory);
@@ -52,12 +57,13 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         crashCoverage = new WeightedSum(targetTrace);
         noveltyFunction = new NoveltyFunction<>(targetTrace);
         archive = new ArrayList<>();
-
+        sortingOperator = new CoverageAndNoveltyBasedSorting<>();
+        considerCoverage=CrashProperties.considerCoverage;
         noveltyThreshold = CrashProperties.noveltyThreshold;
         nicheSize = CrashProperties.nicheSize;
-        stalledThreshold=CrashProperties.stalledThreshold;
-        addingThreshold=CrashProperties.addingThreshold;
-        addingArchiveProbability=CrashProperties.addToArchiveProbability;
+        stalledThreshold = CrashProperties.stalledThreshold;
+        addingThreshold = CrashProperties.addingThreshold;
+        addingArchiveProbability = CrashProperties.addToArchiveProbability;
 
     }
 
@@ -85,17 +91,14 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
             //将现有的population和上一次的archive进行合并
             emerge();
-            LOG.info("Size of Big-Archive: {}",bigArchive.size());
-
-            //在全局空间内进行非支配排序，并根据排序结果把非支配解加入到存档中
-            sort();
+            LOG.info("Size of Big-Archive: {}", bigArchive.size());
+            //求出每个个体与他最近的k个个体的新颖性指标
             updateNiche();
-            LOG.info("Size of niche: {}|{}",niche.size(),nicheSize);
-
-            //再在局部空间内进行新颖性排序
-            calculateNoveltyAndSortPopulation();
+            calculateNovelty();
+            //排序，放入存档
+            //排序选择：如果只关注新颖性则直接排序；若也关注覆盖率，则进行非支配性排序
             updateArchive();
-            LOG.info("Size of Archive: {}|{}",archive.size(),nicheSize);
+            LOG.info("Size of Archive: {}|{}", archive.size(), nicheSize);
 
             this.notifyIteration();
             this.writeIndividuals(this.population);
@@ -131,22 +134,23 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     }
 
-    protected void calculateFitness(){
-        LOG.debug("Calculate fitness for {} individuals.",populationSize);
-        Iterator<T> iterator=population.iterator();
-        while(iterator.hasNext()){
+    protected void calculateFitness() {
+        LOG.debug("Calculate fitness for {} individuals.", populationSize);
+        Iterator<T> iterator = population.iterator();
+        while (iterator.hasNext()) {
             T c = iterator.next();
-            if(isFinished()){
-                if(c.isChanged()){
+            if (isFinished()) {
+                if (c.isChanged()) {
                     iterator.remove();
                 }
-            }else{
+            } else {
                 calculateFitness(c);
             }
         }
     }
-    protected void calculateFitness(T chromosome){
-        for(FitnessFunction<T> fitnessFunction:fitnessFunctions){
+
+    protected void calculateFitness(T chromosome) {
+        for (FitnessFunction<T> fitnessFunction : fitnessFunctions) {
             notifyEvaluation(chromosome);
             fitnessFunction.getFitness(chromosome);
         }
@@ -154,23 +158,78 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     protected void updateArchive() {
         //根据新颖性指标，将niche中的个体选中加入到存档
-        archive=new ArrayList<>();
+        archive = new ArrayList<>();
         int added = 0;
         int notAdded = 0;
         int maxNotAdded = 0;
-        for (T individual : this.niche) {
-            //根据新颖性指标把个体加入存档
-            if ((noveltyFunction.getNovelty(individual, niche) > noveltyThreshold) || Randomness.nextDouble() <= addingArchiveProbability) {
-                archive.add(individual);
-                if (notAdded > maxNotAdded) {
-                    maxNotAdded = notAdded;
-                }
-                notAdded = 0;
-                ++added;
-            } else {
-                notAdded++;
+        if (!considerCoverage) {
+            for (Map.Entry<T, Double> individual : populationWithNovelty.entrySet()) {
+                //根据新颖性指标把个体加入存档
+                if ((individual.getValue() > noveltyThreshold) || Randomness.nextDouble() <= addingArchiveProbability) {
+                    archive.add(individual.getKey());
+                    if (notAdded > maxNotAdded) {
+                        maxNotAdded = notAdded;
+                    }
+                    notAdded = 0;
+                    ++added;
+                } else {
+                    notAdded++;
 
+                }
             }
+        } else {
+            //根据新颖性和覆盖率进行排序
+            sortingOperator.computeRankingAssignment((FitnessFunction<T>) crashCoverage, populationWithNovelty);
+            List<T> nextPopulation = new ArrayList<>();
+            int index = 0;
+            List<T> front;
+            List<T> f0 = sortingOperator.getSubfront(index);
+            LOG.info("*Front 0 size:{}", f0.size());
+            for (T individual : f0) {
+                LOG.info("{}", individual.getFitnessValues().toString());
+            }
+
+            while (nextPopulation.size() < Properties.POPULATION) {
+                front = sortingOperator.getSubfront(index);
+                //还差多少个
+                int capacity = Properties.POPULATION - nextPopulation.size();
+                //看看空位能不能把下一个前沿全放进来
+                if (capacity >= front.size()) {
+                    nextPopulation.addAll(front);
+                    //对成功加入个数进行调整
+                    added += front.size();
+                } else {
+                    //将front里面的个体在哈希表里面找到对应的个体并连同他们的新颖性一起加入一个新的散列表
+
+                    HashMap<T, Double> frontNovelty = new HashMap<>();
+                    for (T individual : front) {
+                        frontNovelty.put(individual, populationWithNovelty.get(individual));
+                    }
+                    //然后对该散列表进行排序
+                    List<Map.Entry<T, Double>> entryList = new ArrayList<>();
+                    entryList.addAll(frontNovelty.entrySet());
+                    entryList.sort(Map.Entry.comparingByValue());
+                    Collections.reverse(entryList);
+                    if (entryList.get(0).getValue()<noveltyThreshold){
+                        continue;
+                    }
+                    //取出满足条件的部分放入列表
+                    //既要满足大于阈值，而且数量也要不超过空位
+                    int ctr=0;
+                    for (Map.Entry<T,Double> entry:entryList) {
+                        if(ctr>=capacity){
+                            break;
+                        }
+                        archive.add(entry.getKey());
+                        added++;
+                    }
+                }
+                index++;
+            }
+
+            archive.clear();
+            archive.addAll(nextPopulation);
+
         }
         //对相关参数的调整更新
         if (maxNotAdded > stalledThreshold) {
@@ -181,169 +240,99 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             //提高novelty threshold
             noveltyThreshold *= 1.05;
         }
-        this.population=archive;
+        this.population = archive;
     }
 
     protected void emerge() {
-        //将旧的存档和今代的种群进行合并，形成bigArchive
+        //将旧的存档和今代的新种群进行合并，形成bigArchive
         bigArchive = new ArrayList<>(archive);
         bigArchive.addAll(this.population);
 
     }
 
-    protected void sort() {
-        //参考自package org.evosuite.ga.operators.ranking的computeRankingAssignment方法
-        //在bigArchive中根据FF和新颖性指标进行全局排序
-        List<T> pop = this.bigArchive;
-        int[] dominateMe = new int[pop.size()];
-        List<Integer>[] iDominate = new List[pop.size()];
-        List<Integer>[] front = new List[pop.size() + 1];
-
-        int i;
-        for (i = 0; i < front.length; ++i) {
-            front[i] = new LinkedList<>();
-        }
-
-        for (i = 0; i < pop.size(); ++i) {
-            iDominate[i] = new LinkedList<>();
-            dominateMe[i] = 0;
-        }
-
-        int var10002;
-        for (i = 0; i < pop.size() - 1; ++i) {
-            for (int j = i + 1; j < pop.size(); ++j) {
-                int flagDominate = compare((Chromosome) this.bigArchive.get(i), (Chromosome) bigArchive.get(j));
-                if (flagDominate == -1) {
-                    iDominate[i].add(j);
-                    var10002 = dominateMe[j]++;
-                } else if (flagDominate == 1) {
-                    iDominate[j].add(i);
-                    var10002 = dominateMe[i]++;
-                }
-            }
-        }
-
-        for (i = 0; i < pop.size(); ++i) {
-            if (dominateMe[i] == 0) {
-                front[0].add(i);
-                ((Chromosome) this.bigArchive.get(i)).setRank(1);
-            }
-        }
-
-        i = 0;
-
-        Iterator it1;
-        while (front[i].size() != 0) {
-            ++i;
-            it1 = front[i - 1].iterator();
-
-            while (it1.hasNext()) {
-                Iterator<Integer> it2 = iDominate[(Integer) it1.next()].iterator();
-
-                while (it2.hasNext()) {
-                    int index = (Integer) it2.next();
-                    var10002 = dominateMe[index]--;
-                    if (dominateMe[index] == 0) {
-                        front[i].add(index);
-                        ((Chromosome) pop.get(index)).setRank(i + 1);
-                    }
-                }
-            }
-        }
-
-        List<T> newPopulation = new ArrayList<>();
-        for (int j = 0; j < i; ++j) {
-            it1 = front[j].iterator();
-            while (it1.hasNext()) {
-                newPopulation.add(this.bigArchive.get((Integer) it1.next()));
-            }
-        }
-        this.bigArchive = newPopulation;
-    }
-
-    public int compare(Chromosome c1, Chromosome c2) {
-        //参考自package org.evosuite.ga.comparators的compare方法
-        //在全局空间中根据覆盖率和新颖性进行非支配性比较
-        if (c1 == null) {
-            return 1;
-        } else if (c2 == null) {
-            return -1;
-        } else {
-            boolean dominate1 = false;
-            boolean dominate2 = false;
-            int flag = Double.compare(c1.getFitness(crashCoverage), c2.getFitness(crashCoverage));
-            if (flag < 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag > 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            int flag1 = Double.compare(noveltyFunction.getNovelty(c1, this.population), noveltyFunction.getNovelty(c2, this.population));
-            if (flag1 < 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag1 > 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            if (dominate1 == dominate2) {
-                return 0;
-            } else if (dominate1) {
-                return -1;
-            } else {
-                return 1;
-            }
-        }
-    }
-
     protected void updateNiche() {
-        //从bigArchive中挑选前k个作为局部空间
-        niche = new ArrayList<>();
-        for (int i = 0; i < nicheSize; i++) {
-            niche.add(bigArchive.get(i));
-        }
-    }
-
-    protected void calculateNoveltyAndSortPopulation() {
-        //局部空间内的新颖性排序
-        LOG.debug("Calculating novelty for " + this.niche.size() + " individuals");
-        Iterator<T> iterator = this.niche.iterator();
-        Map<T, Double> noveltyMap = new LinkedHashMap();
-
-        while (iterator.hasNext()) {
-            T c = iterator.next();
-            if (this.isFinished()) {
-                if (c.isChanged()) {
-                    iterator.remove();
-                }
-            } else {
-                double novelty = this.noveltyFunction.getNovelty(c, this.niche);
-                noveltyMap.put(c, novelty);
+        Niche = new HashMap<T, List<T>>();
+        /*
+        目标：对于大存档内每个个体而言，找出他们的k个邻居
+        1.对大存档内每个个体进行遍历，求出其他个体到这个个体的距离
+        2.对他的其他个体进行排序
+        3.把其他前k个个体放到他的List内
+         */
+        for (T individual : bigArchive) {
+            //散列表用于存储其他个体与当前个体之间的距离
+            HashMap<T, Double> noveltyMap = new HashMap<>();
+            //计算其他个体与当前个体的距离
+            for (T others : bigArchive) {
+                double distance = this.noveltyFunction.getDistance(individual, others);
+                noveltyMap.put(others, distance);
             }
+            //对键值对进行排序，从而的出最近的k个个体
+            List<Map.Entry<T, Double>> list = new ArrayList<>(noveltyMap.entrySet());
+            list.sort(Map.Entry.comparingByValue());
+            //将最近的k个个体存储到一个列表内
+            List<T> listOther = new ArrayList<>();
+            for (Map.Entry<T, Double> other : list) {
+                int i = 0;
+                if (i < nicheSize) {
+                    listOther.add(other.getKey());
+                    ++i;
+                }
+            }
+            //并根据每个个体与离他最近的k个个体这一关系存储在散列表当中
+            Niche.put(individual, listOther);
         }
-
-        this.sortPopulation(this.niche, noveltyMap);
     }
 
-    public T getBestIndividual(){
+    protected void calculateNovelty() {
+        //对每个个体的局部空间进行新颖性计算并用散列表进行记录
+        LOG.debug("Calculating novelty for " + this.Niche.size() + " individuals");
+        populationWithNovelty = new HashMap<T, Double>();
+        if (Niche.isEmpty()) {
+            LOG.warn("Niche is empty");
+        }
+        for (Map.Entry<T, List<T>> individual : Niche.entrySet()) {
+            List<T> list = individual.getValue();
+            Double novelty = noveltyFunction.getNovelty(individual.getKey(), list);
+            //该population实际大小是big-archive的大小
+            //即对big-archive的每个个体都进行新颖性计算后得到的个体和他们对应的新颖值
+            populationWithNovelty.put(individual.getKey(), novelty);
+        }
+    }
+
+    public T getBestIndividual() {
         //返回最优解
-        if(this.population.isEmpty()){
+        if (this.population.isEmpty()) {
             return this.chromosomeFactory.getChromosome();
         }
         //对存档进行排序
-        calculateNoveltyAndSortPopulation();
-        return this.population.get(0);
+        List<T> sortedList = new ArrayList<>();
+        if (!considerCoverage) {
+            sortedList = sortByNovelty();
+        } else {
+            sortedList = archive;
+        }
+        return sortedList.get(0);
     }
+
+    protected List<T> sortByNovelty() {
+        List<Map.Entry<T, Double>> entryList = new ArrayList<>();
+        for (Map.Entry<T, Double> individual : populationWithNovelty.entrySet()) {
+            for (T c : archive) {
+                if (individual.getKey() == c) {
+                    entryList.add(individual);
+                    break;
+                }
+            }
+        }
+        entryList.sort(Map.Entry.comparingByValue());
+        Collections.reverse(entryList);
+        List<T> sortedList = new ArrayList<>();
+        for (Map.Entry<T, Double> entry : entryList) {
+            sortedList.add(entry.getKey());
+        }
+
+        return sortedList;
+    }
+
 
 }

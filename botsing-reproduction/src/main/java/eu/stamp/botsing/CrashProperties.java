@@ -147,6 +147,8 @@ public class CrashProperties {
     @Parameter(key = "ideal_point_shift", group = "MOEAD", description = "Shift objectives of ideal point to a better situation (to avoid local optimum)")
     public static double idealPointShift = 0.1;
 
+
+
     //新颖性搜索所需输入属性
     @Parameter(key="novelty_threshold",group = "NSLC",description = "Novelty threshold in NSLC.")
     public static double noveltyThreshold = 0.5;
@@ -162,6 +164,9 @@ public class CrashProperties {
 
     @Parameter(key="add_to_archive_probability",group="NSLC",description = "Probability of adding into archive in NSLC.")
     public static double addToArchiveProbability=0.5;
+
+    @Parameter(key="consider_coverage",group = "NSLC",description="Whether to consider coverage in NSLC.")
+    public static boolean considerCoverage=false;
 
 
     public enum DistanceCalculator {

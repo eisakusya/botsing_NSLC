@@ -116,11 +116,11 @@ public class Botsing {
                 setConsiderCoverage();
             }
             // 设置种群大小
-            if(commands.hasOption(NICHE_SIZE)){
+            if(commands.hasOption(NICHE_FACTOR)){
                 if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
                     throw new RuntimeException("Search algorithm is not NSLC");
                 }
-                setNicheSize(commands.getOptionValue(NICHE_SIZE));
+                setNicheSize(commands.getOptionValue(NICHE_FACTOR));
             }
             // 设置连续加入失败的允许数
             if(commands.hasOption(STALLED_THRESHOLD)){
@@ -234,8 +234,8 @@ public class Botsing {
 
     private void setNicheSize(String nicheSize) {
 
-        CrashProperties.nicheSize = Integer.parseInt(nicheSize);
-        LOG.info("Size of niche set: {}.",CrashProperties.nicheSize);
+        CrashProperties.nicheFactor = Double.parseDouble(nicheSize);
+        LOG.info("Size-factor of niche set: {}.",CrashProperties.nicheFactor);
     }
 
     private void setStalledThreshold(String stalledThreshold) {

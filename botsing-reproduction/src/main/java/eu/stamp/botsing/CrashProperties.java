@@ -153,8 +153,8 @@ public class CrashProperties {
     @Parameter(key="novelty_threshold",group = "NSLC",description = "Novelty threshold in NSLC.")
     public static double noveltyThreshold = 0.5;
 
-    @Parameter(key="niche_size",group="NSLC",description = "Size of niche in NSLC.")
-    public static int nicheSize=50;
+    @Parameter(key="niche_factor",group="NSLC",description = "Size of niche in NSLC.")
+    public static double nicheFactor=0.5;
 
     @Parameter(key="stalled_threshold",group="NSLC",description = "Allowance of stalled individuals in NSLC.")
     public static int stalledThreshold=5;

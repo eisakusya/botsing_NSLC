@@ -40,7 +40,7 @@ public class CommandLineParameters {
     public static final String CRASH_SECONDARY_OBJECTIVE = "crash_secondary_objective";
     //NSLC:
     public static final String NOVELTY_THRESHOLD = "novelty_threshold";
-    public static final String NICHE_SIZE = "niche_size";
+    public static final String NICHE_FACTOR = "niche_factor";
     public static final String STALLED_THRESHOLD="stalled_threshold";
     public static final String ADDING_THRESHOLD="adding_threshold";
     public static final String ADD_TO_ARCHIVE_PROB="add_to_archive_probability";
@@ -118,7 +118,7 @@ public class CommandLineParameters {
                 .desc("Novelty threshold in novelty search with local competition")
                 .build());
 
-        options.addOption(Option.builder(NICHE_SIZE)
+        options.addOption(Option.builder(NICHE_FACTOR)
                 .hasArg()
                 .desc("Size of niche in novelty search with local competition")
                 .build());

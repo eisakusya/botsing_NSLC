@@ -163,7 +163,7 @@ public class CrashProperties {
     public static int addingThreshold=10;
 
     @Parameter(key="add_to_archive_probability",group="NSLC",description = "Probability of adding into archive in NSLC.")
-    public static double addToArchiveProbability=0.5;
+    public static double addToArchiveProbability=0.8;
 
     @Parameter(key="consider_coverage",group = "NSLC",description="Whether to consider coverage in NSLC.")
     public static boolean considerCoverage=false;

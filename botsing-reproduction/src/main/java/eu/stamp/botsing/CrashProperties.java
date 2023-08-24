@@ -151,7 +151,7 @@ public class CrashProperties {
 
     //新颖性搜索所需输入属性
     @Parameter(key="novelty_threshold",group = "NSLC",description = "Novelty threshold in NSLC.")
-    public static double noveltyThreshold = 0.5;
+    public static double noveltyThreshold = 1.0;
 
     @Parameter(key="niche_factor",group="NSLC",description = "Size of niche in NSLC.")
     public static double nicheFactor=0.5;

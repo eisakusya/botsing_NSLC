@@ -30,9 +30,9 @@ public class NSLCStrategy extends TestGenerationStrategy {
     @Override
     public TestSuiteChromosome generateTests() {
         LOG.info("test generation strategy: Novelty Search with Local Competition");
-
-        TestSuiteChromosome suite=new TestSuiteChromosome();
+        TestSuiteChromosome suite = new TestSuiteChromosome();
         ExecutionTracer.enableTraceCalls();
+
         // 获取搜索算法
         GeneticAlgorithm ga = utility.getGA();
         if (!(ga instanceof NoveltySearch)) {
@@ -44,25 +44,25 @@ public class NSLCStrategy extends TestGenerationStrategy {
         //因此停止条件添加为budget消耗完或者实现主目标
         StoppingCondition stoppingCondition = getStoppingCondition();
         stoppingCondition.setLimit(Properties.SEARCH_BUDGET);
-//        ga.addStoppingCondition(new ZeroFitnessStoppingCondition());
+        ga.addStoppingCondition(new ZeroFitnessStoppingCondition());
         ga.addStoppingCondition(stoppingCondition);
 
-        List<TestFitnessFunction> fitnessFunctions=fitnessFunctionCollector.getFitnessFunctionList();
+        List<TestFitnessFunction> fitnessFunctions = fitnessFunctionCollector.getFitnessFunctionList();
 
         // Add listeners
-
         if (Properties.CHECK_BEST_LENGTH) {
             org.evosuite.testcase.RelativeTestLengthBloatControl bloat_control = new org.evosuite.testcase.RelativeTestLengthBloatControl();
             ga.addBloatControl(bloat_control);
             ga.addListener(bloat_control);
         }
         ga.addListener(new ResourceController());
-        //因为已经指定FF为覆盖率
 
+        //因为已经指定FF为覆盖率
         ga.addFitnessFunctions(fitnessFunctions);
+
         //开始搜索生成
         ga.generateSolution();
-        TestChromosome solution=(TestChromosome) ga.getBestIndividual();
+        TestChromosome solution = (TestChromosome) ga.getBestIndividual();
         suite.addTest(solution);
         return suite;
 

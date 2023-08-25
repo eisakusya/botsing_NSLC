@@ -14,12 +14,12 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
     private List<List<T>> fronts = null;
     protected HashMap<T, Double> populationWithNoveltyScore = null;
     protected HashMap<T, Integer> populationWithLocalCompetition = null;
-    protected List<T> population=null;
+    protected List<T> population = null;
 
     public CoverageAndNoveltyBasedSorting(HashMap<T, Double> p1, HashMap<T, Integer> p2) {
         populationWithNoveltyScore = p1;
         populationWithLocalCompetition = p2;
-        population=new ArrayList<>(populationWithNoveltyScore.keySet());
+        population = new ArrayList<>(populationWithNoveltyScore.keySet());
     }
 
     public void computeRankingAssignment() {
@@ -29,7 +29,7 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
         int frontIndex = 1;
         if (zero_front.size() < Properties.POPULATION) {
             int rankedSolutions = zero_front.size();
-            List<T> remaining=new ArrayList<>(population);
+            List<T> remaining = new ArrayList<>(population);
             remaining.removeAll(zero_front);
 
             while (rankedSolutions < Properties.POPULATION && remaining.size() > 0) {
@@ -40,9 +40,9 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
                 ++frontIndex;
             }
         } else {
-            List<T> remaining=new ArrayList<>(population);
+            List<T> remaining = new ArrayList<>(population);
             remaining.removeAll(zero_front);
-            for(T c:remaining){
+            for (T c : remaining) {
                 c.setRank(frontIndex);
             }
             fronts.add(remaining);
@@ -55,13 +55,14 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
         Set<T> zero_front = new LinkedHashSet(population.size());
 
         T best = null;
-        for (T test : population) {
-            int flag = compare(test, best);
-            if (flag <= 0 && (flag == 0 || Randomness.nextBoolean())) {
-                best = test;
+        while (best == null) {
+            for (T test : population) {
+                int flag = compare(test, best);
+                if (flag <= 0 && (flag == 0 || Randomness.nextBoolean())) {
+                    best = test;
+                }
             }
         }
-        assert best != null;
         best.setRank(0);
         zero_front.add(best);
 
@@ -79,7 +80,7 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
 
             while (var2.hasNext()) {
                 T best = (T) var2.next();
-                int flag=compare(c,best);
+                int flag = compare(c, best);
 
                 if (flag == -1) {
                     dominatedIndividual.add(best);

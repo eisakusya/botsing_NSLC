@@ -133,7 +133,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             this.writeIndividuals(this.population);
         }
         try {
-            archive=seed();
+            archive=objectiveSeed();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -195,6 +195,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //根据新颖性得分和局部竞争目标进行非支配性排序
         CoverageAndNoveltyBasedSorting<T> sortingOperator = new CoverageAndNoveltyBasedSorting<T>(populationWithNovelty, populationWithLC);
         sortingOperator.computeRankingAssignment();
+        double e=0.0;
 
         //根据非支配性排序好的f0前沿维护档案
         List<T> f0 = sortingOperator.getSubfront(0);
@@ -202,9 +203,13 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
         for (T chromosome : f0) {
             HashMap<T, Double> neighborhood = new HashMap<>();
-            if (archive.isEmpty()) {
-                archive.add(f0.get(0));
-                LOG.info("Archive initialization with 1 individual");
+            /*
+            要先对存档初始化两个元素
+            否则对于NSLC的计算会造成影响
+             */
+            if (archive.size()<2) {
+                archive.add(chromosome);
+                LOG.info("Archive initialization with {} individual",archive.size());
                 break;
             }
 
@@ -217,17 +222,31 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             //对邻居进行排序，得出最近的个体
             List<Map.Entry<T, Double>> entryList = new ArrayList<>(neighborhood.entrySet());
             entryList.sort(Map.Entry.comparingByValue());
+            Map.Entry<T,Double> closest=entryList.get(0);
 
             //档案维护
-            if (entryList.get(0).getValue() > noveltyThreshold) {
+            double maxDensity=0.0;
+            for (int i=0;i<archive.size();++i){
+                List<T> niche=new ArrayList<>(archive);
+                niche.remove(i);
+                double density=noveltyFunction.getNovelty(archive.get(i),niche);
+                if (density>maxDensity){
+                    maxDensity=density;
+                }
+            }
+            noveltyThreshold=maxDensity;
+            if (closest.getValue() > noveltyThreshold) {
                 //如果当前个体与最近邻个体距离大于设定阈值，则直接加入存档
                 archive.add(chromosome);
                 LOG.info("A new individual is added to archive");
-            } else if (epsilonDominance(chromosome, entryList.get(0).getKey(), 0.1)) {
+            } else if (epsilonDominance(chromosome, closest.getKey(), e)) {
                 //如果当前个体满足exclusive e-dominance支配最近邻，那么当前个体替换最近邻
-                int index1 = archive.indexOf(entryList.get(0).getKey());
+                int index1 = archive.indexOf(closest.getKey());
                 archive.set(index1, chromosome);
                 LOG.info("An old individual is replaced by a new one in position {}",index1);
+            }
+            else {
+                LOG.info("No update in archive");
             }
         }
 
@@ -236,17 +255,17 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
     protected boolean epsilonDominance(T x1, T x2, double e) {
         //exclusive epsilon-dominance
         //使用新颖性得分和局部竞争目标进行评估
+        List<T> niche=new ArrayList<>(archive);
+        niche.remove(archive.indexOf(x2));
+
         double N1 = noveltyFunction.getNovelty(x1,archive);
-        double N2 = noveltyFunction.getNovelty(x2,archive);
+        double N2 = noveltyFunction.getNovelty(x2,niche);
         double Q1 = calculateLocalCompetition(x1,archive);
-        double Q2 = calculateLocalCompetition(x2,archive);
+        double Q2 = calculateLocalCompetition(x2,niche);
         boolean var1 = N1 >= (1 - e) * N2;
         boolean var2 = Q1 >= (1 - e) * Q2;
         boolean var3 = Q2 * (N1 - N2) > (-N2) * (Q1 - Q2);
-        if (var1 && var2 && var3) {
-            return true;
-        }
-        return false;
+        return var1 && var2 && var3;
     }
 
     protected void emerge() {
@@ -379,9 +398,10 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         HashMap<T, Integer> archiveWithLocalCompetition = new HashMap<>();
 
         for (int i = 0; i < archiveClone.size(); i++) {
-            //存档内的新颖性计算
             List<T> neighborhood = new ArrayList<>(archiveClone);
             neighborhood.remove(i);
+
+            //存档内的新颖性计算
             double novelty = noveltyFunction.getNovelty(archiveClone.get(i), neighborhood);
             archiveWithNoveltyScore.put(archiveClone.get(i), novelty);
 
@@ -396,6 +416,46 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         CoverageAndNoveltyBasedSorting<T> frontOperator = new CoverageAndNoveltyBasedSorting<>(archiveWithNoveltyScore, archiveWithLocalCompetition);
         frontOperator.computeRankingAssignment();
         return frontOperator.getSubfront(0);
+    }
+
+    protected List<T> noveltySeed(){
+        if(archive.size()<=1){
+            return archive;
+        }
+
+        List<T> seed=new ArrayList<>();
+        T optima=archive.get(0);
+        for(int i=1;i<archive.size();++i){
+            List<T> niche1=new ArrayList<>(archive);
+            List<T> niche2=new ArrayList<>(archive);
+            niche1.remove(archive.indexOf(optima));
+            niche2.remove(i);
+            double f1= noveltyFunction.getNovelty(optima,niche1);
+            double f2=noveltyFunction.getNovelty(archive.get(i),niche2);
+            if(f1<f2){
+                optima=archive.get(i);
+            }
+        }
+        seed.add(optima);
+        return seed;
+    }
+
+    protected List<T> objectiveSeed(){
+        if(archive.size()<=1){
+            return archive;
+        }
+
+        List<T> seed=new ArrayList<>();
+        T optima=archive.get(0);
+        for(int i=1;i<archive.size();++i){
+            double f1= optima.getFitness();
+            double f2=archive.get(i).getFitness();
+            if(f2<f1){
+                optima=archive.get(i);
+            }
+        }
+        seed.add(optima);
+        return seed;
     }
 
     protected int calculateWorseCtr(List<T> neighborhood, double f1, int worseCtr) {

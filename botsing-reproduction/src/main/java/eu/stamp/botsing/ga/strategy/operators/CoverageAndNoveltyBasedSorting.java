@@ -3,6 +3,7 @@ package eu.stamp.botsing.ga.strategy.operators;
 import org.evosuite.Properties;
 import org.evosuite.ga.Chromosome;
 import org.evosuite.ga.FitnessFunction;
+import org.evosuite.ga.comparators.DominanceComparator;
 import org.evosuite.utils.Randomness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,148 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
 
         }
 
+    }
+
+    public void sort(){
+        List<T> solutionSet_ = population;
+        int[] dominateMe = new int[population.size()];
+        List<Integer>[] iDominate = new List[population.size()];
+        List<Integer>[] front = new List[population.size() + 1];
+
+        int i;
+        for(i = 0; i < front.length; ++i) {
+            front[i] = new LinkedList();
+        }
+
+        for(i = 0; i < solutionSet_.size(); ++i) {
+            (population.get(i)).setDistance(Double.MAX_VALUE);
+        }
+
+        for(i = 0; i < solutionSet_.size(); ++i) {
+            iDominate[i] = new LinkedList();
+            dominateMe[i] = 0;
+        }
+
+        int var;
+        for(i = 0; i < solutionSet_.size() - 1; ++i) {
+            for(int q = i + 1; q < solutionSet_.size(); ++q) {
+                int flagDominate = compare(population.get(i), population.get(q));
+                if (flagDominate == -1) {
+                    iDominate[i].add(q);
+                    var = dominateMe[q]++;
+                } else if (flagDominate == 1) {
+                    iDominate[q].add(i);
+                    var = dominateMe[i]++;
+                }
+            }
+        }
+
+        for(i = 0; i < solutionSet_.size(); ++i) {
+            if (dominateMe[i] == 0) {
+                front[0].add(i);
+                (population.get(i)).setRank(1);
+            }
+        }
+
+        i = 0;
+
+        Iterator it1;
+        while(front[i].size() != 0) {
+            ++i;
+            it1 = front[i - 1].iterator();
+
+            while(it1.hasNext()) {
+                Iterator<Integer> it2 = iDominate[(Integer)it1.next()].iterator();
+
+                while(it2.hasNext()) {
+                    int index = (Integer)it2.next();
+                    var = dominateMe[index]--;
+                    if (dominateMe[index] == 0) {
+                        front[i].add(index);
+                        (solutionSet_.get(index)).setRank(i + 1);
+                    }
+                }
+            }
+
+        }
+
+        List<T>[] fronts = new ArrayList[i];
+
+        for(int j = 0; j < i; ++j) {
+            fronts[j] = new ArrayList();
+            it1 = front[j].iterator();
+
+            while(it1.hasNext()) {
+                fronts[j].add(population.get((Integer)it1.next()));
+            }
+        }
+
+    }
+
+    public void nondominatedSort(){
+        List<List<Integer>> iDominate=new ArrayList<>();
+        List<Integer> dominateMe=new ArrayList<>();
+        List<List<Integer>> Fronts=new ArrayList<>();
+        int i,var;
+        Fronts.add(new ArrayList<>());
+        for(i=0;i<population.size();++i){
+            //初始化相关记录
+            iDominate.add(new ArrayList<>());
+            dominateMe.add(0);
+
+            for(int j=0;j< population.size();++j){
+                //排除自己
+                if (j==i){
+                    continue;
+                }
+
+                //非支配性比较
+                int flag=compare(population.get(i), population.get(j));
+                if(flag==-1){
+                    iDominate.get(i).add(j);
+                } else if (flag==1) {
+                    var=dominateMe.get(i);
+                    var++;
+                    dominateMe.set(i,var);
+                }
+            }
+
+            //front维护
+            if (dominateMe.get(i)==0){
+                Fronts.get(0).add(i);
+            }
+        }
+
+        i=0;
+        while(!Fronts.get(i).isEmpty()){
+            List<Integer> newFront=new ArrayList<>();
+
+            for(int j=0;j<Fronts.get(i).size();++j){    //第i个Front
+                int index=Fronts.get(i).get(j);     //第i个Front之中的第j个个体
+                for(int k=0;k<iDominate.get(index).size();++k){     //第j个个体的iDominate集合
+                    int index1=iDominate.get(index).get(k);     //iDominate集合中的第k个个体
+                    var=dominateMe.get(index1);
+                    var--;
+                    dominateMe.set(index1,var);
+                    if (var==0){
+                        newFront.add(index1);
+                    }
+                }
+            }
+
+            ++i;
+            Fronts.add(newFront);
+        }
+
+        fronts=new ArrayList<>();
+        for (i=0;i< Fronts.size();++i){
+            int index;
+            fronts.add(new ArrayList<>());
+            for(int j=0;j<Fronts.get(i).size();++j){
+                index=Fronts.get(i).get(j);
+                fronts.get(i).add(population.get(index));
+            }
+        }
     }
 
     private List<T> getZeroFront() {
@@ -103,38 +246,34 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
 
     protected int compare(T var1, T var2) {
         if (var1 == null) {
+            //var2更优
             return 1;
         } else if (var2 == null) {
+            //var1更优
             return -1;
         } else {
             boolean dominate1 = false;
             boolean dominate2 = false;
             //比较新颖性得分
-            int flag1 = Double.compare(populationWithNoveltyScore.get(var1), populationWithNoveltyScore.get(var2));
-            if (flag1 > 0) {
+            double N1=populationWithNoveltyScore.get(var1);
+            double N2=populationWithNoveltyScore.get(var2);
+            if (N1>N2) {
                 dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag1 < 0) {
+
+            } else if (N1<N2) {
                 dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
+
             }
 
             //比较局部竞争值
-            int flag2 = Integer.compare(populationWithLocalCompetition.get(var1), populationWithLocalCompetition.get(var2));
-            if (flag2 > 0) {
+            double LC1=populationWithLocalCompetition.get(var1);
+            double LC2=populationWithLocalCompetition.get(var2);
+            if (LC1>LC2) {
                 dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag2 < 0) {
+
+            } else if (LC1<LC2) {
                 dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
+
             }
 
             if (dominate1 == dominate2) {
@@ -147,211 +286,6 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
         }
     }
 
-    public void computeRankingAssignment(FitnessFunction<T> fitnessFunction, HashMap<T, Double> population) {
-        //用于浮点数的比较
-
-        if (population.isEmpty()) {
-            LOG.debug("solution is empty");
-        }
-//        List<Map.Entry<T, Double>> pop = (ArrayList<Map.Entry<T, Double>>) population.entrySet();
-        fronts = new ArrayList<>(population.size());
-        List<T> zero_front = this.getZeroFront(population, fitnessFunction);
-        this.fronts.add(zero_front);
-        int frontIndex = 1;
-        if (zero_front.size() < Properties.POPULATION) {
-            int rankedSolutions = zero_front.size();
-            HashMap<T, Double> remaining = new HashMap<>();
-            remaining = (HashMap<T, Double>) population.clone();
-            for (T z : zero_front) {
-                remaining.remove(z);
-            }
-
-            while (rankedSolutions < Properties.POPULATION && remaining.size() > 0) {
-                List<T> new_front = getNonDominatedSolutions(remaining, fitnessFunction, frontIndex);
-                fronts.add(new_front);
-                for (T n : new_front) {
-                    remaining.remove(n);
-                }
-                rankedSolutions += new_front.size();
-                ++frontIndex;
-            }
-        } else {
-            HashMap<T, Double> remaining = new HashMap<>();
-            remaining = (HashMap<T, Double>) population.clone();
-            for (T z : zero_front) {
-                remaining.remove(z);
-            }
-            List<T> remainingList = new ArrayList<>();
-            for (Map.Entry<T, Double> remain : remaining.entrySet()) {
-                remain.getKey().setRank(frontIndex);
-                remainingList.add(remain.getKey());
-            }
-
-        }
-    }
-
-    public void computeRankingAssignment(FitnessFunction<T> fitnessFunction, HashMap<T, Integer> population, boolean LC) {
-        //用于整型的比较
-
-        if (population.isEmpty()) {
-            LOG.debug("solution is empty");
-        }
-//        List<Map.Entry<T, Integer>> pop = (ArrayList<Map.Entry<T, Integer>>) population.entrySet();
-        fronts = new ArrayList<>(population.size());
-        List<T> zero_front = this.getZeroFront(population, fitnessFunction, true);
-        this.fronts.add(zero_front);
-        int frontIndex = 1;
-        if (zero_front.size() < Properties.POPULATION) {
-            int rankedSolutions = zero_front.size();
-            HashMap<T, Integer> remaining = new HashMap<>();
-            remaining = (HashMap<T, Integer>) population.clone();
-            for (T z : zero_front) {
-                remaining.remove(z);
-            }
-
-            while (rankedSolutions < Properties.POPULATION && remaining.size() > 0) {
-                List<T> new_front = getNonDominatedSolutions(remaining, fitnessFunction, frontIndex, true);
-                fronts.add(new_front);
-                for (T n : new_front) {
-                    remaining.remove(n);
-                }
-                rankedSolutions += new_front.size();
-                ++frontIndex;
-            }
-        } else {
-            HashMap<T, Integer> remaining = new HashMap<>();
-            remaining = (HashMap<T, Integer>) population.clone();
-            for (T z : zero_front) {
-                remaining.remove(z);
-            }
-            List<T> remainingList = new ArrayList<>();
-            for (Map.Entry<T, Integer> remain : remaining.entrySet()) {
-                remain.getKey().setRank(frontIndex);
-                remainingList.add(remain.getKey());
-            }
-
-        }
-    }
-
-    private List<T> getZeroFront(HashMap<T, Double> population, FitnessFunction<T> fitnessFunction) {
-        //用于浮点数的比较
-
-        Set<T> zero_front = new LinkedHashSet(population.size());
-
-        Map.Entry<T, Double> best = null;
-        for (Map.Entry<T, Double> test : population.entrySet()) {
-            int flag = compare(test, best, fitnessFunction);
-            if (flag <= 0 && (flag == 0 || Randomness.nextBoolean())) {
-                best = test;
-            }
-        }
-        assert best != null;
-        best.getKey().setRank(0);
-        zero_front.add(best.getKey());
-
-        return new ArrayList<>(zero_front);
-
-    }
-
-    private List<T> getZeroFront(HashMap<T, Integer> population, FitnessFunction<T> fitnessFunction, boolean LCWithCoverage) {
-        if (!LCWithCoverage) {
-            throw new RuntimeException("It should be computed by NSLC with coverage");
-        }
-        Set<T> zero_front = new LinkedHashSet(population.size());
-
-        Map.Entry<T, Integer> best = null;
-        for (Map.Entry<T, Integer> test : population.entrySet()) {
-            int flag = compare(test, best, fitnessFunction, true);
-            if (flag <= 0 && (flag == 0 || Randomness.nextBoolean())) {
-                best = test;
-            }
-        }
-        assert best != null;
-        best.getKey().setRank(0);
-        zero_front.add(best.getKey());
-
-        return new ArrayList<>(zero_front);
-
-    }
-
-    private List<T> getNonDominatedSolutions(HashMap<T, Double> population, FitnessFunction fitnessFunction, int frontIndex) {
-        //用于浮点数的比较
-        List<T> front = new ArrayList<>(population.size());
-        Iterator var1 = population.entrySet().iterator();
-        while (var1.hasNext()) {
-            Map.Entry<T, Double> c = (Map.Entry<T, Double>) var1.next();
-            boolean isDominated = false;
-            List<T> dominatedIndividual = new ArrayList<>(population.size());
-            Iterator var2 = front.iterator();
-
-            while (var2.hasNext()) {
-                T c1 = (T) var2.next();
-                Map.Entry<T, Double> best = null;
-                for (Map.Entry<T, Double> entry : population.entrySet()) {
-                    if (entry.getKey() == c1) {
-                        best = entry;
-                        break;
-                    }
-                }
-
-                int flag = compare(c, best, fitnessFunction);
-                if (flag == -1) {
-                    dominatedIndividual.add(best.getKey());
-                } else if (flag == 1) {
-                    isDominated = true;
-                    break;
-                }
-            }
-
-            if (!isDominated) {
-                c.getKey().setRank(frontIndex);
-                front.add(c.getKey());
-                front.removeAll(dominatedIndividual);
-            }
-        }
-
-        return front;
-    }
-
-    private List<T> getNonDominatedSolutions(HashMap<T, Integer> population, FitnessFunction fitnessFunction, int frontIndex, boolean LC) {
-        if (!LC) {
-            throw new RuntimeException("It should be computed by NSLC with coverage");
-        }
-        List<T> front = new ArrayList<>(population.size());
-        Iterator var1 = population.entrySet().iterator();
-        while (var1.hasNext()) {
-            Map.Entry<T, Integer> c = (Map.Entry<T, Integer>) var1.next();
-            boolean isDominated = false;
-            List<T> dominatedIndividual = new ArrayList<>(population.size());
-            Iterator var2 = front.iterator();
-
-            while (var2.hasNext()) {
-                T c1 = (T) var2.next();
-                Map.Entry<T, Integer> best = null;
-                for (Map.Entry<T, Integer> entry : population.entrySet()) {
-                    if (entry.getKey() == c1) {
-                        best = entry;
-                        break;
-                    }
-                }
-                int flag = compare(c, best, fitnessFunction, true);
-                if (flag == -1) {
-                    dominatedIndividual.add(best.getKey());
-                } else if (flag == 1) {
-                    isDominated = true;
-                    break;
-                }
-            }
-
-            if (!isDominated) {
-                c.getKey().setRank(frontIndex);
-                front.add(c.getKey());
-                front.removeAll(dominatedIndividual);
-            }
-        }
-
-        return front;
-    }
 
     public List<T> getSubfront(int rank) throws Exception {
         if ((fronts.isEmpty())) {
@@ -367,101 +301,6 @@ public class CoverageAndNoveltyBasedSorting<T extends Chromosome> {
         return fronts.size();
     }
 
-    protected int compare(Map.Entry<T, Double> var1, Map.Entry<T, Double> var2, FitnessFunction<T> fitnessFunction) {
-        //用于浮点数的比较
 
-        if (var1 == null) {
-            return 1;
-        } else if (var2 == null) {
-            return -1;
-        } else {
-            boolean dominate1 = false;
-            boolean dominate2 = false;
-            int flag = Double.compare(var1.getKey().getFitness(fitnessFunction), var2.getKey().getFitness(fitnessFunction));
-            if (flag < 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag > 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            //通过get散列表来比较两者的新颖性指标
-            //新颖性指标越大越好
-            int flag1 = Double.compare(var1.getValue(), var2.getValue());
-            if (flag1 > 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag1 < 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            if (dominate1 == dominate2) {
-                return 0;
-            } else if (dominate1) {
-                return -1;
-            } else {
-                return 1;
-            }
-        }
-    }
-
-    protected int compare(Map.Entry<T, Integer> var1, Map.Entry<T, Integer> var2, FitnessFunction<T> fitnessFunction, boolean LC) {
-        if (!LC) {
-            throw new RuntimeException("It should be computed by NSLC with coverage");
-        }
-        if (var1 == null) {
-            return 1;
-        } else if (var2 == null) {
-            return -1;
-        } else {
-            boolean dominate1 = false;
-            boolean dominate2 = false;
-            int flag = Double.compare(var1.getKey().getFitness(fitnessFunction), var2.getKey().getFitness(fitnessFunction));
-            if (flag < 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag > 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            //通过get散列表来比较两者的新颖性指标
-            //比个体优的个数越小越好
-            int flag1 = Integer.compare(var1.getValue(), var2.getValue());
-            if (flag1 < 0) {
-                dominate1 = true;
-                if (dominate2) {
-                    return 0;
-                }
-            } else if (flag1 > 0) {
-                dominate2 = true;
-                if (dominate1) {
-                    return 0;
-                }
-            }
-
-            if (dominate1 == dominate2) {
-                return 0;
-            } else if (dominate1) {
-                return -1;
-            } else {
-                return 1;
-            }
-        }
-    }
 
 }

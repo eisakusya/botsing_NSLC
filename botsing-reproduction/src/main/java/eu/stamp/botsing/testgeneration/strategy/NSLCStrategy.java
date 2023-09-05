@@ -62,8 +62,26 @@ public class NSLCStrategy extends TestGenerationStrategy {
 
         //开始搜索生成
         ga.generateSolution();
+
+        //搜索完成
         TestChromosome solution = (TestChromosome) ga.getBestIndividual();
-        suite.addTest(solution);
+
+        double bestFF=solution.getFitness();
+        if (bestFF==0.0){
+            LOG.info("* The target crash is covered. Solution: "+solution.getTestCase().toCode());
+            LOG.info("{} thrown exception(s) are ddetected in the solution: ",solution.getLastExecutionResult().getAllThrownExceptions().size());
+            for (Throwable t: solution.getLastExecutionResult().getAllThrownExceptions()){
+                LOG.info(t.toString());
+                for (StackTraceElement frame: t.getStackTrace()){
+                    LOG.info(frame.toString());
+                }
+            }
+            suite.addTest(solution);
+        }else {
+            LOG.info("* The target crash is not covered! The best solution has "+bestFF + "fitness value.");
+
+        }
+
         return suite;
 
     }

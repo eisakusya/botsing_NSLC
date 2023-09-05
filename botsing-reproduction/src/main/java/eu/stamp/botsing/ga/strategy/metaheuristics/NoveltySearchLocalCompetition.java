@@ -36,9 +36,6 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
     private int populationSize;
     protected List<T> archive = null;
     protected List<T> union = null;
-    protected int stalledThreshold;
-    protected double addToNicheProbability;
-    protected boolean considerCoverage = false;
 
     public NoveltySearchLocalCompetition(ChromosomeFactory<T> factory, CrossOverFunction crossOverOperator, Mutation mutationOperator) {
         super(factory);
@@ -58,11 +55,9 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //crashCoverage = fitnessFunctions.get(0);
         noveltyFunction = new NoveltyFunction<>(targetTrace);
         archive = new ArrayList<>();
-        considerCoverage = CrashProperties.considerCoverage;
+
         noveltyThreshold = CrashProperties.noveltyThreshold;
         nicheFactor = CrashProperties.nicheFactor;
-        stalledThreshold = CrashProperties.stalledThreshold;
-        addToNicheProbability = CrashProperties.addToArchiveProbability;
 
     }
 
@@ -91,20 +86,17 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             LOG.info("Number of generations: {}", generation);
 
             //进化
-            parents=new ArrayList<>(population);
-            if (generation > 1) {
-                //将档案中最优解作为种子进行种群生成
-                try {
-                    population = seed();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
+            parents = new ArrayList<>(population);
+//            if (generation > 1) {
+//                //将档案中最优解作为种子进行种群生成
+//                try {
+//                    population = seed();
+//                } catch (Exception e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
             evolve();
             //子代生成,使用不排序的父代进行遗传变异
-
-            //随机生成子代试验，即父代与子代毫无关联，效果差
-            //generatePopulation(populationSize);
 
             //将子代和父代进行合并
             emerge();
@@ -154,7 +146,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     protected void generatePopulation(int populationSize) {
         LOG.info("Creating random population");
-        population=new ArrayList<>(populationSize);
+        population = new ArrayList<>(populationSize);
         for (int i = 0; i < populationSize; i++) {
             T individual;
             individual = chromosomeFactory.getChromosome();
@@ -191,7 +183,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                 LOG.info("Crossover failed");
             }
 
-            if (Randomness.nextDouble()<=Properties.MUTATION_RATE){
+            if (Randomness.nextDouble() <= Properties.MUTATION_RATE) {
                 notifyMutation(offspring1);
                 mutation.mutateOffspring(offspring1);
                 notifyMutation(offspring2);
@@ -206,7 +198,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
         }
 
-        population=new ArrayList<>(offspringPopulation);
+        population = new ArrayList<>(offspringPopulation);
     }
 
     protected void calculateFitness(List<T> pop) {
@@ -242,7 +234,6 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         List<T> f0 = sortingOperator.getSubfront(0);
         LOG.info("*Front 0 size:{}", f0.size());
 
-        boolean notMotified=false;
         for (T chromosome : f0) {
             HashMap<T, Double> neighborhood = new HashMap<>();
             /*
@@ -261,12 +252,12 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                 neighborhood.put(neighbor, distance);
             }
 
-            //找出邻居中最近的个体
+            //找出邻居中最近的个体，优化：去掉排序
             List<Map.Entry<T, Double>> entryList = new ArrayList<>(neighborhood.entrySet());
             Map.Entry<T, Double> closest = entryList.get(0);
-            for (int i=1;i< entryList.size();++i) {
-                if(entryList.get(i).getValue()<closest.getValue()){
-                    closest=entryList.get(i);
+            for (int i = 1; i < entryList.size(); ++i) {
+                if (entryList.get(i).getValue() < closest.getValue()) {
+                    closest = entryList.get(i);
                 }
             }
 
@@ -292,14 +283,8 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                 int index1 = archive.indexOf(closest.getKey());
                 archive.set(index1, chromosome);
                 LOG.info("An old individual is replaced by a new one in position {}", index1);
-            } else {
-                notMotified=true;
             }
 
-        }
-
-        if (notMotified){
-            LOG.info("No update in archive");
         }
 
     }
@@ -326,8 +311,6 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //子代和父代合并
         union = new ArrayList<>(parents);
         union.addAll(this.population);
-        calculateFitness(union);
-
     }
 
     protected void updateNiche() {
@@ -402,8 +385,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
         for (Map.Entry<T, List<T>> individualAndNeighbor : Niche.entrySet()) {
             T individual = individualAndNeighbor.getKey();
-            //更新个体的FF值并获得
-            crashCoverage.getFitness(individual);
+            //obtain FF value
             double f1 = individual.getFitness();
             List<T> neighbors = individualAndNeighbor.getValue();
             //比当前个体更差的个体数
@@ -432,13 +414,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         if (this.population.isEmpty()) {
             return this.chromosomeFactory.getChromosome();
         }
-        //对存档进行排序
-//        List<T> f0 = new ArrayList<>();
-//        try {
-//            f0 = seed();
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
+        //assume that the archive is sorted
         return archive.get(0);
     }
 
@@ -460,7 +436,6 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             archiveWithNoveltyScore.put(archiveClone.get(i), novelty);
 
             //存档内的LC计算
-            crashCoverage.getFitness(archiveClone.get(i));
             double f1 = archiveClone.get(i).getFitness();
             int worseCtr = 0;
             worseCtr = calculateWorseCtr((List<T>) neighborhood, f1, worseCtr);
@@ -470,58 +445,18 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         CoverageAndNoveltyBasedSorting<T> frontOperator = new CoverageAndNoveltyBasedSorting<>(archiveWithNoveltyScore, archiveWithLocalCompetition);
         frontOperator.nondominatedSort();
 
-        List<T> f0=frontOperator.getSubfront(0);
-        T optimal=f0.get(0);
-        for(int i=1;i<f0.size();++i){
-            double noveltyScore=archiveWithNoveltyScore.get(f0.get(i));
-            if (noveltyScore>archiveWithNoveltyScore.get(optimal)){
-                optimal=f0.get(i);
+        List<T> f0 = frontOperator.getSubfront(0);
+        T optimal = f0.get(0);
+        for (int i = 1; i < f0.size(); ++i) {
+            double score = f0.get(i).getFitness();
+            if (score < optimal.getFitness()) {
+                optimal = f0.get(i);
             }
         }
-        List<T> Seed=new ArrayList<>();
+        List<T> Seed = new ArrayList<>();
         Seed.add(optimal);
 
         return Seed;
-    }
-
-    protected List<T> noveltySeed() {
-        if (archive.size() <= 1) {
-            return archive;
-        }
-
-        List<T> seed = new ArrayList<>();
-        T optima = archive.get(0);
-        for (int i = 1; i < archive.size(); ++i) {
-            List<T> niche1 = new ArrayList<>(archive);
-            List<T> niche2 = new ArrayList<>(archive);
-            niche1.remove(archive.indexOf(optima));
-            niche2.remove(i);
-            double f1 = noveltyFunction.getNovelty(optima, niche1);
-            double f2 = noveltyFunction.getNovelty(archive.get(i), niche2);
-            if (f1 < f2) {
-                optima = archive.get(i);
-            }
-        }
-        seed.add(optima);
-        return seed;
-    }
-
-    protected List<T> objectiveSeed() {
-        if (archive.size() <= 1) {
-            return archive;
-        }
-
-        List<T> seed = new ArrayList<>();
-        T optima = archive.get(0);
-        for (int i = 1; i < archive.size(); ++i) {
-            double f1 = optima.getFitness();
-            double f2 = archive.get(i).getFitness();
-            if (f2 < f1) {
-                optima = archive.get(i);
-            }
-        }
-        seed.add(optima);
-        return seed;
     }
 
     protected int calculateWorseCtr(List<T> neighborhood, double f1, int worseCtr) {

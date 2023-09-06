@@ -150,23 +150,11 @@ public class CrashProperties {
 
 
     //新颖性搜索所需输入属性
-    @Parameter(key="novelty_threshold",group = "NSLC",description = "Novelty threshold in NSLC.")
-    public static double noveltyThreshold = 1.0;
-
     @Parameter(key="niche_factor",group="NSLC",description = "Size of niche in NSLC.")
     public static double nicheFactor=0.5;
 
-    @Parameter(key="stalled_threshold",group="NSLC",description = "Allowance of stalled individuals in NSLC.")
-    public static int stalledThreshold=5;
-
-    @Parameter(key="adding_threshold",group="NSLC",description = "Allowance of adding individuals in NSLC.")
-    public static int addingThreshold=10;
-
-    @Parameter(key="add_to_archive_probability",group="NSLC",description = "Probability of adding into archive in NSLC.")
-    public static double addToArchiveProbability=0.8;
-
-    @Parameter(key="consider_coverage",group = "NSLC",description="Whether to consider coverage in NSLC.")
-    public static boolean considerCoverage=false;
+    @Parameter(key = "epsilon",group = "NSLC",description = "epsilon in NSLC")
+    public static double epsilon=0.3;
 
 
     public enum DistanceCalculator {

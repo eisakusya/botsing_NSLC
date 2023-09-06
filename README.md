@@ -34,7 +34,9 @@ Botsing is partially funded by research project STAMP (European Commission - H20
 
 7-`-fitness`:适应度函数的选用，默认为`WeightedSum`。如果是跑NSLC该参数选项请忽略。其他适应度函数参阅同第六点
 
-8-其他命令请查阅`"Botsing"`类进行学习使用
+8-`-epsilon`:用于自定义e-dominance的epsilon参数，默认不设置为0.3
+
+9-其他命令请查阅`"Botsing"`类进行学习使用
 
 ## 使用准备
 

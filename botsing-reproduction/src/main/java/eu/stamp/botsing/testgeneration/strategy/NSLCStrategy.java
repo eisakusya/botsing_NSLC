@@ -78,7 +78,7 @@ public class NSLCStrategy extends TestGenerationStrategy {
             }
             suite.addTest(solution);
         }else {
-            LOG.info("* The target crash is not covered! The best solution has "+bestFF + "fitness value.");
+            LOG.info("* The target crash is not covered! The best solution has "+bestFF + " fitness value.");
 
         }
 

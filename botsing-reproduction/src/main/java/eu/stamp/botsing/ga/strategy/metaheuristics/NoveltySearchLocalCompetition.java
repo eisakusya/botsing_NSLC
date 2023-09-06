@@ -27,10 +27,10 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
     protected double nicheFactor = 0.0;
     private int nicheSize;//k值
     protected HashMap<T, List<T>> Niche = null;
-    protected List<T> parents = null;
     protected HashMap<T, Double> populationWithNovelty = null;
     protected HashMap<T, Integer> populationWithLC = null;
     protected double noveltyThreshold;
+    protected double epsilon;
     private FitnessFunction<T> crashCoverage = null;
     private final NoveltyFunction<T> noveltyFunction;
     private int populationSize;
@@ -55,8 +55,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //crashCoverage = fitnessFunctions.get(0);
         noveltyFunction = new NoveltyFunction<>(targetTrace);
         archive = new ArrayList<>();
-
-        noveltyThreshold = CrashProperties.noveltyThreshold;
+        epsilon = CrashProperties.epsilon;
         nicheFactor = CrashProperties.nicheFactor;
 
     }
@@ -86,18 +85,15 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             LOG.info("Number of generations: {}", generation);
 
             //进化
-            parents = new ArrayList<>(population);
-//            if (generation > 1) {
-//                //将档案中最优解作为种子进行种群生成
-//                try {
-//                    population = seed();
-//                } catch (Exception e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
+            if (generation > 1) {
+                population.clear();
+                population.addAll(archive);
+            } else if (generation == 1) {
+                //初始化，第一代，存档为空
+                archive.clear();
+                archive.addAll(population);
+            }
             evolve();
-            //子代生成,使用不排序的父代进行遗传变异
-
             //将子代和父代进行合并
             emerge();
             LOG.info("Size of Union: {}", union.size());
@@ -124,13 +120,9 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             LOG.info("Size of Archive: {}", archive.size());
 
             this.notifyIteration();
-            this.writeIndividuals(this.population);
+            this.writeIndividuals(this.archive);
         }
-        try {
-            archive = seed();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+
     }
 
     public void initializePopulation() {
@@ -140,7 +132,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //Start generating population.
         LOG.debug("Initializing the population.");
         generatePopulation(populationSize);
-//        calculateFitness();     //only one main objective
+        calculateFitness(population);     //only one main objective
         this.notifyIteration();
     }
 
@@ -228,79 +220,77 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
         //根据新颖性得分和局部竞争目标进行非支配性排序
         CoverageAndNoveltyBasedSorting<T> sortingOperator = new CoverageAndNoveltyBasedSorting<T>(populationWithNovelty, populationWithLC);
         sortingOperator.nondominatedSort();
-        double e = 0.3;
 
-        //根据非支配性排序好的f0前沿维护档案
-        List<T> f0 = sortingOperator.getSubfront(0);
-        LOG.info("*Front 0 size:{}", f0.size());
+        List<T> newArchive = new ArrayList<>();
+        List<T> front;
+        int frontSize = sortingOperator.getNumberOfSubfronts() - 1;
+        int index = 0;
+        while (newArchive.size() < populationSize && index < frontSize) {
+            front = new ArrayList<>(sortingOperator.getSubfront(index));
+            int capacity = populationSize - newArchive.size();
+            if (capacity >= front.size()) {
+                newArchive.addAll(front);
+            } else {
+                //update algo
+                for (T chromosome : front) {
+                    //计算要加进去的个体与已存在存档中的个体的距离
+                    //找出邻居中最近的个体
+                    double min_d = Double.MAX_VALUE;
+                    T closest = null;
+                    for (T neighbor : newArchive) {
+                        double distance = noveltyFunction.getDistance(chromosome, neighbor);
+                        if (distance < min_d) {
+                            min_d = distance;
+                            closest = neighbor;
+                        }
+                    }
 
-        for (T chromosome : f0) {
-            HashMap<T, Double> neighborhood = new HashMap<>();
-            /*
-            要先对存档初始化两个元素
-            否则对于NSLC的计算会造成影响
-             */
-            if (archive.size() < 2) {
-                archive.add(chromosome);
-                LOG.info("Archive initialization with {} individual", archive.size());
-                break;
-            }
+                    //档案更新
+                    double maxDensity = 0.0;
+                    for (int i = 0; i < newArchive.size(); ++i) {
+                        List<T> niche = new ArrayList<>(newArchive);
+                        niche.remove(i);
+                        double density = noveltyFunction.getNovelty(newArchive.get(i), niche);
+                        if (density > maxDensity) {
+                            maxDensity = density;
+                        }
+                    }
+                    //threshold取最大的疏松度（新颖性分数）
+                    noveltyThreshold = maxDensity;
 
-            //计算要加进去的个体与已存在存档中的个体的距离
-            for (T neighbor : archive) {
-                double distance = noveltyFunction.getDistance(chromosome, neighbor);
-                neighborhood.put(neighbor, distance);
-            }
-
-            //找出邻居中最近的个体，优化：去掉排序
-            List<Map.Entry<T, Double>> entryList = new ArrayList<>(neighborhood.entrySet());
-            Map.Entry<T, Double> closest = entryList.get(0);
-            for (int i = 1; i < entryList.size(); ++i) {
-                if (entryList.get(i).getValue() < closest.getValue()) {
-                    closest = entryList.get(i);
+                    if (min_d > noveltyThreshold) {
+                        //如果当前个体与最近邻个体距离大于设定阈值，则直接加入存档
+                        newArchive.add(chromosome);
+                        //LOG.info("A new individual is added to archive");
+                        if (newArchive.size() >= populationSize) {
+                            break;
+                        }
+                    } else if (epsilonDominance(chromosome, closest, newArchive)) {
+                        //如果当前个体满足exclusive e-dominance支配最近邻，那么当前个体替换最近邻
+                        int index1 = newArchive.indexOf(closest);
+                        newArchive.set(index1, chromosome);
+                        //LOG.info("An old individual is replaced by a new one in position {}", index1);
+                    }
                 }
             }
-
-            //档案维护
-            double maxDensity = 0.0;
-            for (int i = 0; i < archive.size(); ++i) {
-                List<T> niche = new ArrayList<>(archive);
-                niche.remove(i);
-                double density = noveltyFunction.getNovelty(archive.get(i), niche);
-                if (density > maxDensity) {
-                    maxDensity = density;
-                }
-            }
-            //threshold取最大的疏松度（新颖性分数）
-            noveltyThreshold = maxDensity;
-
-            if (closest.getValue() > noveltyThreshold) {
-                //如果当前个体与最近邻个体距离大于设定阈值，则直接加入存档
-                archive.add(chromosome);
-                LOG.info("A new individual is added to archive");
-            } else if (epsilonDominance(chromosome, closest.getKey(), e)) {
-                //如果当前个体满足exclusive e-dominance支配最近邻，那么当前个体替换最近邻
-                int index1 = archive.indexOf(closest.getKey());
-                archive.set(index1, chromosome);
-                LOG.info("An old individual is replaced by a new one in position {}", index1);
-            }
-
+            index++;
         }
+        archive.clear();
+        archive.addAll(newArchive);
 
     }
 
-    protected boolean epsilonDominance(T x1, T x2, double e) {
+    protected boolean epsilonDominance(T x1, T x2, List<T> pop) {
         //exclusive epsilon-dominance
-        //使用新颖性得分和局部竞争目标进行评估
-        List<T> niche = new ArrayList<>(archive);
-        niche.remove(archive.indexOf(x2));
+        //使用新颖性得分和FF进行评估
+        double e = epsilon;
+        List<T> niche = new ArrayList<>(pop);
+        niche.remove(pop.indexOf(x2));
 
-        double N1 = noveltyFunction.getNovelty(x1, archive);
+        double N1 = noveltyFunction.getNovelty(x1, pop);
         double N2 = noveltyFunction.getNovelty(x2, niche);
         double Q1 = -(x1.getFitness());
         double Q2 = -(x2.getFitness());
-//        double Q1 = calculateLocalCompetition(x1,archive);
-//        double Q2 = calculateLocalCompetition(x2,niche);
         boolean var1 = N1 >= (1 - e) * N2;
         boolean var2 = Q1 >= (1 - e) * Q2;
         boolean var3 = Q2 * (N1 - N2) > (-N2) * (Q1 - Q2);
@@ -309,7 +299,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     protected void emerge() {
         //子代和父代合并
-        union = new ArrayList<>(parents);
+        union = new ArrayList<>(archive);
         union.addAll(this.population);
     }
 
@@ -397,66 +387,21 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
     }
 
-    protected int calculateLocalCompetition(T individual, List<T> others) {
-        crashCoverage.getFitness(individual);
-        double f1 = individual.getFitness();
-
-        int worseCtr = 0;
-        if (others.isEmpty()) {
-            return worseCtr;
-        }
-        worseCtr = calculateWorseCtr((List<T>) others, f1, worseCtr);
-        return worseCtr;
-    }
-
     public T getBestIndividual() {
         //返回最优解
         if (this.population.isEmpty()) {
             return this.chromosomeFactory.getChromosome();
         }
-        //assume that the archive is sorted
-        return archive.get(0);
-    }
-
-    protected List<T> seed() throws Exception {
-        //选出存档中最优作为种子
-        if (archive.size() <= 1) {
-            return archive;
-        }
-        List<T> archiveClone = new ArrayList<>(archive);
-        HashMap<T, Double> archiveWithNoveltyScore = new HashMap<>();
-        HashMap<T, Integer> archiveWithLocalCompetition = new HashMap<>();
-
-        for (int i = 0; i < archiveClone.size(); i++) {
-            List<T> neighborhood = new ArrayList<>(archiveClone);
-            neighborhood.remove(i);
-
-            //存档内的新颖性计算
-            double novelty = noveltyFunction.getNovelty(archiveClone.get(i), neighborhood);
-            archiveWithNoveltyScore.put(archiveClone.get(i), novelty);
-
-            //存档内的LC计算
-            double f1 = archiveClone.get(i).getFitness();
-            int worseCtr = 0;
-            worseCtr = calculateWorseCtr((List<T>) neighborhood, f1, worseCtr);
-            archiveWithLocalCompetition.put(archiveClone.get(i), worseCtr);
-        }
-
-        CoverageAndNoveltyBasedSorting<T> frontOperator = new CoverageAndNoveltyBasedSorting<>(archiveWithNoveltyScore, archiveWithLocalCompetition);
-        frontOperator.nondominatedSort();
-
-        List<T> f0 = frontOperator.getSubfront(0);
-        T optimal = f0.get(0);
-        for (int i = 1; i < f0.size(); ++i) {
-            double score = f0.get(i).getFitness();
-            if (score < optimal.getFitness()) {
-                optimal = f0.get(i);
+        double bestFF = Double.MAX_VALUE;
+        T bestIndividual = null;
+        for (T individual : archive) {
+            if (individual.getFitness() < bestFF) {
+                bestFF = individual.getFitness();
+                bestIndividual = individual;
             }
         }
-        List<T> Seed = new ArrayList<>();
-        Seed.add(optimal);
 
-        return Seed;
+        return bestIndividual;
     }
 
     protected int calculateWorseCtr(List<T> neighborhood, double f1, int worseCtr) {

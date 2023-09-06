@@ -39,12 +39,8 @@ public class CommandLineParameters {
     public static final String CONTINUE_AFTER_REPRODUCTION = "continue_after_reproduction";
     public static final String CRASH_SECONDARY_OBJECTIVE = "crash_secondary_objective";
     //NSLC:
-    public static final String NOVELTY_THRESHOLD = "novelty_threshold";
     public static final String NICHE_FACTOR = "niche_factor";
-    public static final String STALLED_THRESHOLD="stalled_threshold";
-    public static final String ADDING_THRESHOLD="adding_threshold";
-    public static final String ADD_TO_ARCHIVE_PROB="add_to_archive_probability";
-    public static final String CONSIDER_COVERAGE="consider_coverage";
+    public static final String EPSILON="epsilon";
 
 
     public static Options getCommandLineOptions() {
@@ -113,34 +109,18 @@ public class CommandLineParameters {
                 .desc("Crash-related secondary search objectives")
                 .build());
 
-        options.addOption(Option.builder(NOVELTY_THRESHOLD)
-                .hasArg()
-                .desc("Novelty threshold in novelty search with local competition")
-                .build());
-
+        // Novelty Search
         options.addOption(Option.builder(NICHE_FACTOR)
                 .hasArg()
-                .desc("Size of niche in novelty search with local competition")
+                .desc("Size-factor of niche in novelty search with local competition, default as 0.5")
                 .build());
 
-        options.addOption(Option.builder(STALLED_THRESHOLD)
+        options.addOption(Option.builder(EPSILON)
                 .hasArg()
-                .desc("Stalled-allowance threshold in novelty search with local competition")
+                .desc("Epsilon of e-dominance in novelty search with local competition, default as 0.3")
                 .build());
 
-        options.addOption(Option.builder(ADDING_THRESHOLD)
-                .hasArg()
-                .desc("Adding-allowance threshold in novelty search with local competition")
-                .build());
 
-        options.addOption(Option.builder(ADD_TO_ARCHIVE_PROB)
-                .hasArg()
-                .desc("Random double for adding to archive in novelty search with local competition")
-                .build());
-
-        options.addOption(Option.builder(CONSIDER_COVERAGE)
-                .desc("Whether to consider coverage in novelty search with local competition")
-                .build());
 
         return options;
     }

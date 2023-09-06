@@ -102,46 +102,19 @@ public class Botsing {
                 CrashProperties.stopAfterFirstCrashReproduction = false;
             }
             // 设置新颖性指标
-            if(commands.hasOption(NOVELTY_THRESHOLD)){
-                if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
-                    throw new RuntimeException("Search algorithm is not NSLC");
-                }
-                setNoveltyThreshold(commands.getOptionValue(NOVELTY_THRESHOLD));
-            }
-            // 设置是否考虑覆盖率
-            if(commands.hasOption(NOVELTY_THRESHOLD)){
-                if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
-                    throw new RuntimeException("Search algorithm is not NSLC");
-                }
-                setConsiderCoverage();
-            }
             // 设置种群大小
             if(commands.hasOption(NICHE_FACTOR)){
                 if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
                     throw new RuntimeException("Search algorithm is not NSLC");
                 }
-                setNicheSize(commands.getOptionValue(NICHE_FACTOR));
+                setNicheFactor(commands.getOptionValue(NICHE_FACTOR));
             }
-            // 设置连续加入失败的允许数
-            if(commands.hasOption(STALLED_THRESHOLD)){
+
+            if(commands.hasOption(EPSILON)){
                 if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
                     throw new RuntimeException("Search algorithm is not NSLC");
                 }
-                setStalledThreshold(commands.getOptionValue(STALLED_THRESHOLD));
-            }
-            // 设置加入成功的阈值
-            if(commands.hasOption(ADDING_THRESHOLD)){
-                if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
-                    throw new RuntimeException("Search algorithm is not NSLC");
-                }
-                setAddingThreshold(commands.getOptionValue(ADDING_THRESHOLD));
-            }
-            // 设置加入存档的随机数
-            if(commands.hasOption(ADD_TO_ARCHIVE_PROB)){
-                if(CrashProperties.searchAlgorithm!= CrashProperties.SearchAlgorithm.NoveltySearch){
-                    throw new RuntimeException("Search algorithm is not NSLC");
-                }
-                setATAProbability(commands.getOptionValue(ADD_TO_ARCHIVE_PROB));
+                setEpsilon(commands.getOptionValue(EPSILON));
             }
             // execute
             return CrashReproduction.execute();
@@ -225,40 +198,17 @@ public class Botsing {
 
     }
 
-    //NSLC所需
-    private void setNoveltyThreshold(String noveltyThreshold) {
+    //NSLC
+    private void setNicheFactor(String nicheFactor) {
 
-        CrashProperties.noveltyThreshold = Double.parseDouble(noveltyThreshold);
-        LOG.info("Novelty initialized: {}.",CrashProperties.noveltyThreshold);
-    }
-
-    private void setNicheSize(String nicheSize) {
-
-        CrashProperties.nicheFactor = Double.parseDouble(nicheSize);
+        CrashProperties.nicheFactor = Double.parseDouble(nicheFactor);
         LOG.info("Size-factor of niche set: {}.",CrashProperties.nicheFactor);
     }
 
-    private void setStalledThreshold(String stalledThreshold) {
+    private void setEpsilon(String epsilon) {
 
-        CrashProperties.stalledThreshold = Integer.parseInt(stalledThreshold);
-        LOG.info("Stalled threshold set: {}.",CrashProperties.stalledThreshold);
-    }
-
-    private void setAddingThreshold(String addingThreshold) {
-
-        CrashProperties.addingThreshold = Integer.parseInt(addingThreshold);
-        LOG.info("Adding threshold set: {}.",CrashProperties.addingThreshold);
-    }
-
-    private void setATAProbability(String probability) {
-
-        CrashProperties.addToArchiveProbability = Double.parseDouble(probability);
-        LOG.info("Probability initialized: {}.",CrashProperties.addToArchiveProbability);
-    }
-
-    private void setConsiderCoverage(){
-        CrashProperties.considerCoverage=true;
-        LOG.info("Consider coverage in NSLC.");
+        CrashProperties.epsilon = Double.parseDouble(epsilon);
+        LOG.info("Epsilon of e-dominance set: {}.",CrashProperties.nicheFactor);
     }
 
     @SuppressWarnings("checkstyle:systemexit")

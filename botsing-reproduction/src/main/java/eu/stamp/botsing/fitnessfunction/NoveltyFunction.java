@@ -1,6 +1,7 @@
 package eu.stamp.botsing.fitnessfunction;
 
 import eu.stamp.botsing.StackTrace;
+import eu.stamp.botsing.fitnessfunction.calculator.EuclideanDistance;
 import eu.stamp.botsing.fitnessfunction.calculator.diversity.HammingDiversity;
 import org.evosuite.ga.Chromosome;
 
@@ -19,7 +20,7 @@ public class NoveltyFunction<T extends Chromosome> extends org.evosuite.ga.Novel
 
     public double getDistance(Chromosome var1, Chromosome var2){
         //use hamming distance to get distance of two chromosome
-        return HammingDiversity.getInstance(targetTrace).getHammingDistance(var1,var2);
+        return EuclideanDistance.getInstance(targetTrace).getEuclideanDistance(var1,var2);
     }
 
     public double getNovelty(T individual, Collection<T> population) {

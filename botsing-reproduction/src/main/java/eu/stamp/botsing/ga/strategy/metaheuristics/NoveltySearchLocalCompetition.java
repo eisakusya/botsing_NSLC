@@ -80,7 +80,9 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             }
         }
         int generation = 0;
+        long startTime=System.currentTimeMillis();
         while (!isFinished()) {
+
             ++generation;
             LOG.info("Number of generations: {}", generation);
 
@@ -122,7 +124,8 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
             this.notifyIteration();
             this.writeIndividuals(this.archive);
         }
-
+        long endTime=System.currentTimeMillis();
+        LOG.info("Passing time:{} ms",(endTime-startTime));
     }
 
     public void initializePopulation() {

@@ -110,7 +110,10 @@ public class CrashReproduction {
 
 
         TestGenerationStrategy strategy = CrashReproductionHelper.getTestGenerationFactory();
+        long startTime=System.currentTimeMillis();
         TestSuiteChromosome testCases = strategy.generateTests();
+        long endTime=System.currentTimeMillis();
+        LOG.info("Passing time:{} ms",(endTime-startTime));
 
         postProcessTests(testCases,getFitnessFactories(),true);
 

@@ -331,15 +331,28 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                 noveltyMap.put(Others.get(j), distance);
             }
 
-            //对其他个体进行距离排序
-            List<Map.Entry<T, Double>> entryList = new ArrayList<>(noveltyMap.entrySet());
-            entryList.sort(Map.Entry.comparingByValue());
-
             //取出前k个个体，作为当前个体的邻域
             List<T> neighborhood = new ArrayList<>();
-            for (int k = 0; k < nicheSize; ++k) {
-                neighborhood.add(entryList.get(k).getKey());
+            for (int j=0;j<nicheSize;++j){
+                Double closestValue=Double.MAX_VALUE;
+                T closestIndividual=null;
+                for (Map.Entry<T,Double> tDoubleEntry:noveltyMap.entrySet()){
+                    if (tDoubleEntry.getValue()<closestValue){
+                        closestIndividual=tDoubleEntry.getKey();
+                        closestValue=tDoubleEntry.getValue();
+                    }
+                }
+                neighborhood.add(closestIndividual);
+
             }
+            //对其他个体进行距离排序
+//            List<Map.Entry<T, Double>> entryList = new ArrayList<>(noveltyMap.entrySet());
+//            entryList.sort(Map.Entry.comparingByValue());
+
+
+//            for (int k = 0; k < nicheSize; ++k) {
+//                neighborhood.add(entryList.get(k).getKey());
+//            }
 
             //按照个体->邻域的对应关系进行存储
             Niche.put(union.get(i), neighborhood);

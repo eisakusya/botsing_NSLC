@@ -343,6 +343,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                     }
                 }
                 neighborhood.add(closestIndividual);
+                noveltyMap.remove(closestIndividual);
 
             }
             //对其他个体进行距离排序

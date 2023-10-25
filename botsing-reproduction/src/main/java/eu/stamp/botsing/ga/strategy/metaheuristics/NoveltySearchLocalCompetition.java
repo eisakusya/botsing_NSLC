@@ -333,7 +333,7 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
 
             //取出前k个个体，作为当前个体的邻域
             List<T> neighborhood = new ArrayList<>();
-            for (int j=0;j<nicheSize;++j){
+            /*for (int j=0;j<nicheSize;++j){
                 Double closestValue=Double.MAX_VALUE;
                 T closestIndividual=null;
                 for (Map.Entry<T,Double> tDoubleEntry:noveltyMap.entrySet()){
@@ -345,6 +345,19 @@ public class NoveltySearchLocalCompetition<T extends Chromosome> extends org.evo
                 neighborhood.add(closestIndividual);
                 noveltyMap.remove(closestIndividual);
 
+            }*/
+            //使用（最小）堆排序获取前k个个体
+            PriorityQueue<Map.Entry<T, Double>> heap = new PriorityQueue<>(nicheSize, Comparator.comparingDouble(Map.Entry::getValue));
+            for (Map.Entry<T, Double> entry : noveltyMap.entrySet()) {
+                if (heap.size() < nicheSize) {
+                    heap.offer(entry);
+                } else if (heap.peek().getValue() > entry.getValue()) {
+                    heap.poll();
+                    heap.offer(entry);
+                }
+            }
+            for (Map.Entry<T, Double> entry : heap) {
+                neighborhood.add(entry.getKey());
             }
             //对其他个体进行距离排序
 //            List<Map.Entry<T, Double>> entryList = new ArrayList<>(noveltyMap.entrySet());
